@@ -4,16 +4,16 @@ services:
     container_name: runjam-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-runjam}
-      POSTGRES_USER: ${POSTGRES_USER:-dev}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev}
+      POSTGRES_DB: runjam
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       TZ: Asia/Seoul
     ports:
-      - '5432:5432' # 필요시 "5433:5432"로 변경
+      - '5434:5432'
     volumes:
       - ./pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d runjam']
       interval: 10s
       timeout: 5s
       retries: 5
