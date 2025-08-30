@@ -11,6 +11,14 @@ export class UsersService {
     private userRepository: Repository<UserModel>,
   ) {}
 
+  findByEmail(email: string) {
+    return this.userRepository
+      .createQueryBuilder('u')
+      .addSelect('u.password')
+      .where('u.email = :email', { email })
+      .getOne();
+  }
+
   async create(email: string, password: string, nickname: string) {
     const emailExits = await this.userRepository.findOne({ where: { email } });
     if (emailExits) {

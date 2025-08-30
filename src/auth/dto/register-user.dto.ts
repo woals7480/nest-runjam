@@ -11,3 +11,12 @@ export class RegisterUserDto {
   @IsString()
   nickname: string;
 }
+
+export class LoginUserDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(6)
+  password: string;
+}

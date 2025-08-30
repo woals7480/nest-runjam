@@ -8,7 +8,7 @@ import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     TypeOrmModule.forRootAsync({
       useFactory: (): TypeOrmModuleOptions => ({
         type: 'postgres',
@@ -18,7 +18,7 @@ import { AuthModule } from './auth/auth.module';
             ? { ca: process.env.DB_CA_CERT }
             : undefined,
         autoLoadEntities: true,
-        synchronize: false,
+        synchronize: true,
       }),
     }),
     UsersModule,
