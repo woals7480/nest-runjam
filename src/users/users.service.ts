@@ -11,6 +11,10 @@ export class UsersService {
     private userRepository: Repository<UserModel>,
   ) {}
 
+  findById(id: string) {
+    return this.userRepository.findOne({ where: { id } });
+  }
+
   findByEmail(email: string) {
     return this.userRepository
       .createQueryBuilder('u')
