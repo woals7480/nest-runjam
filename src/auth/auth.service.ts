@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { AccessPayload, RefreshPayload } from './dto/jwt.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ACCESS_JWT, REFRESH_JWT } from './const/auth.token';
+import { LoginUserDto, RegisterUserDto } from './dto/register-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -13,20 +14,20 @@ export class AuthService {
     @Inject(REFRESH_JWT) private readonly refreshJwt: JwtService,
   ) {}
 
-  async register(email: string, password: string, nickname: string) {
-    const user = await this.usersService.create(email, password, nickname);
-    return this.usersService.sanitize(user);
+  async register(user: RegisterUserDto) {
+    const newUser = await this.usersService.create(user);
+    return this.usersService.sanitize(newUser);
   }
 
-  async validate(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
+  async validate(loginUser: LoginUserDto) {
+    const user = await this.usersService.findByEmail(loginUser.email);
     if (!user) {
-      throw new UnauthorizedException('이메일/비밀번호를 확인하세요.');
+      throw new UnauthorizedException('존재하지 않는 사용자압니다.');
     }
 
-    const passOk = await bcrypt.compare(password, user.password);
+    const passOk = await bcrypt.compare(loginUser.password, user.password);
     if (!passOk) {
-      throw new UnauthorizedException('이메일/비밀번호를 확인하세요.');
+      throw new UnauthorizedException('비밀번호가 틀렸습니다.');
     }
     return user;
   }
@@ -47,13 +48,15 @@ export class AuthService {
     return this.refreshJwt.sign(payload);
   }
 
-  async verifyRefreshOrThrow(token: string): Promise<RefreshPayload> {
+  verifyRefresh(token: string): RefreshPayload {
     try {
-      const p = await this.refreshJwt.verifyAsync<RefreshPayload>(token);
-      if (p.type !== 'refresh') throw new Error('wrong type');
+      const p = this.refreshJwt.verify<RefreshPayload>(token);
+      if (p.type !== 'refresh') throw new Error('잘못된 토큰 유형입니다.');
       return p;
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(
+        '리프레시 토큰이 만료되었거나 유효하지 않습니다.',
+      );
     }
   }
 }

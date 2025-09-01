@@ -56,7 +56,7 @@ export class AuthController {
 
   @Post('register')
   register(@Body() dto: RegisterUserDto) {
-    return this.authService.register(dto.email, dto.password, dto.nickname);
+    return this.authService.register(dto);
   }
 
   @Post('login')
@@ -64,20 +64,7 @@ export class AuthController {
     @Body() dto: LoginUserDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const user = await this.authService.validate(dto.email, dto.password);
-    // const token = this.authService.signToken(user.id, user.email);
-
-    // const isProd = process.env.NODE_ENV === 'production';
-    // const cookieName = process.env.COOKIE_NAME || 'access_token';
-
-    // res.cookie(cookieName, token, {
-    //   httpOnly: true,
-    //   secure: isProd,
-    //   sameSite: isProd ? 'none' : 'lax',
-    //   path: '/',
-    //   domain: process.env.COOKIE_DOMAIN || undefined,
-    //   maxAge: 7 * 24 * 60 * 60 * 1000,
-    // });
+    const user = await this.authService.validate(dto);
 
     const accessToken = this.authService.signAccessToken(user.id, user.email);
     const refreshToken = this.authService.signRefreshToken(user.id);
@@ -97,7 +84,7 @@ export class AuthController {
       throw new UnauthorizedException('No refresh token');
     }
 
-    const payload = await this.authService.verifyRefreshOrThrow(refreshToken);
+    const payload = this.authService.verifyRefresh(refreshToken);
     // 새 토큰들 발급(슬라이딩 만료)
     // 이메일은 DB조회로 보강(없으면 Access payload에 email 생략해도 무방)
     const user = await this.userService.findByEmail(
