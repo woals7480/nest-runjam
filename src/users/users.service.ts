@@ -12,8 +12,8 @@ export class UsersService {
     private userRepository: Repository<UserModel>,
   ) {}
 
-  findById(id: string) {
-    return this.userRepository.findOne({ where: { id } });
+  async findById(id: string) {
+    return await this.userRepository.findOne({ where: { id } });
   }
 
   findByEmail(email: string) {

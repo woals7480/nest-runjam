@@ -1,4 +1,3 @@
-import { Exclude } from 'class-transformer';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { BaseModel } from 'src/common/entity/base.entity';
 import { emailValidationMessage } from 'src/common/validation-message/email-validation.message';
@@ -13,7 +12,6 @@ export class UserModel extends BaseModel {
   @IsEmail({}, { message: emailValidationMessage })
   email: string;
 
-  @Exclude()
   @Column({ select: false })
   @IsString({ message: stringValidationMessage })
   @MinLength(6, { message: lengthValidationMessage })

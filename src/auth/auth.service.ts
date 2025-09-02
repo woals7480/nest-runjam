@@ -32,11 +32,6 @@ export class AuthService {
     return user;
   }
 
-  // signToken(userId: string, email: string) {
-  //   const payload: JwtPayload = { sub: userId, email };
-  //   return this.jwtService.sign(payload);
-  // }
-
   signAccessToken(userId: string, email: string) {
     const payload: AccessPayload = { sub: userId, email, type: 'access' };
     return this.accessJwt.sign(payload);
@@ -50,9 +45,10 @@ export class AuthService {
 
   verifyRefresh(token: string): RefreshPayload {
     try {
-      const p = this.refreshJwt.verify<RefreshPayload>(token);
-      if (p.type !== 'refresh') throw new Error('잘못된 토큰 유형입니다.');
-      return p;
+      const payload = this.refreshJwt.verify<RefreshPayload>(token);
+      if (payload.type !== 'refresh')
+        throw new UnauthorizedException('잘못된 토큰 유형입니다.');
+      return payload;
     } catch {
       throw new UnauthorizedException(
         '리프레시 토큰이 만료되었거나 유효하지 않습니다.',
