@@ -28,6 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Access 토큰이 아닙니다.');
     }
+
     return { id: payload.sub, email: payload.email };
   }
 }

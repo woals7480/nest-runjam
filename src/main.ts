@@ -9,11 +9,11 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: (process.env.CORS_ORIGIN ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
-    credentials: true, // 쿠키 전송 허용
+    origin: [
+      'http://localhost:3000', // Next dev
+      // 'https://your-frontend.app',    // 배포 도메인
+    ],
+    credentials: true, // 반드시 true
   });
 
   app.useGlobalPipes(
