@@ -23,7 +23,7 @@ export class ShoeModel extends BaseModel {
   @Length(1, 50, { message: lengthValidationMessage })
   nickname?: string;
 
-  @ManyToOne(() => UserModel, (user) => user.shoes)
+  @ManyToOne(() => UserModel, (user) => user.shoes, { onDelete: 'CASCADE' })
   user: UserModel;
 
   @Column()

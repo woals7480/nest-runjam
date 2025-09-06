@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { CommonModule } from './common/common.module';
 import { ShoesModule } from './shoes/shoes.module';
+import { RunModule } from './run/run.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ShoesModule } from './shoes/shoes.module';
     AuthModule,
     CommonModule,
     ShoesModule,
+    RunModule,
   ],
   controllers: [AppController],
   providers: [
