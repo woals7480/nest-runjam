@@ -13,7 +13,13 @@ export class UsersService {
   ) {}
 
   async findById(id: string) {
-    return await this.userRepository.findOne({ where: { id } });
+    return await this.userRepository.findOne({
+      where: { id },
+      relations: {
+        shoes: true,
+        runs: true,
+      },
+    });
   }
 
   findByEmail(email: string) {
