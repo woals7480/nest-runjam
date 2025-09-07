@@ -17,11 +17,20 @@ export class RunService {
       userId: dto.userId,
       runAt: parseYmdHmToDate(dto.runAt),
       distance: dto.distance,
-      // durationSec: parseHmsToSec(dto.duration), // "HH:mm:ss" → 초
-      // note: dto.note,
+      durationSec: parseHmsToSec(dto.duration),
+      note: dto.note,
     });
 
-    console.log(run);
-    // return this.runRepository.save(run);
+    return this.runRepository.save(run);
+  }
+
+  async findRuns(userId: string) {
+    const runs = await this.runRepository.find({
+      where: {
+        userId,
+      },
+    });
+
+    return runs;
   }
 }
