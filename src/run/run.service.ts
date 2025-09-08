@@ -29,8 +29,22 @@ export class RunService {
       where: {
         userId,
       },
+      relations: {
+        mileages: true,
+      },
     });
 
-    return runs;
+    const raw = await this.runRepository
+      .createQueryBuilder('r')
+      .select('COALESCE(SUM(r.distance), 0)', 'sum')
+      .where('r.userId = :userId', { userId })
+      .getRawOne<{ sum: string | null }>();
+
+    const totalDistance = Number(raw?.sum ?? 0); // DECIMAL → number
+
+    return {
+      items: runs,
+      totalDistance,
+    };
   }
 }
