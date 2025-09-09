@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -10,6 +12,7 @@ import {
 import { ShoesService } from './shoes.service';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { CreateShoeDto } from './dto/create-shoe.dto';
+import { UpdateShoeDto } from './dto/update-shoe.dto';
 
 @Controller('shoes')
 export class ShoesController {
@@ -30,15 +33,27 @@ export class ShoesController {
     return this.shoesService.createShoe(req.user.id, dto);
   }
 
-  @Post(':shoeId/mileages')
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  deleteShoe(@Param('id') id: string) {
+    return this.shoesService.deleteShoe(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  patchShoe(@Param('id') id: string, @Body() dto: UpdateShoeDto) {
+    return this.shoesService.updateShoe(id, dto);
+  }
+
+  @Post(':id/mileages')
   postLinkRun(
-    @Param('shoeId') shoeId: string,
+    @Param('id') id: string,
     @Body()
     dto: {
       runId: string;
     },
   ) {
-    return this.shoesService.linkRunToShoe(shoeId, dto.runId);
+    return this.shoesService.linkRunToShoe(id, dto.runId);
   }
 
   @Post('mileages/:mileageId')

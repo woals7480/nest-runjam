@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -10,6 +9,7 @@ import { ShoeModel } from './entity/shoes.entity';
 import { DataSource, Repository } from 'typeorm';
 import { RunModel } from 'src/run/entity/run.entity';
 import { ShoeMileageModel } from './entity/shoe-mileage.entity';
+import { UpdateShoeDto } from './dto/update-shoe.dto';
 
 @Injectable()
 export class ShoesService {
@@ -38,15 +38,34 @@ export class ShoesService {
     return this.shoeRepository.save(shoe);
   }
 
+  async deleteShoe(shoeId: string) {
+    const shoe = await this.shoeRepository.findOne({
+      where: {
+        id: shoeId,
+      },
+    });
+
+    if (!shoe) {
+      throw new NotFoundException('신발을 찾을 수 없습니다.');
+    }
+
+    await this.shoeRepository.delete(shoeId);
+
+    return { deletedId: shoeId };
+  }
+
   /** Run을 Shoe에 연결: totalMileageKm += run.distanceKm */
   async linkRunToShoe(shoeId: string, runId: string) {
     return this.datasource.transaction(async (m) => {
       const shoe = await m.findOne(ShoeModel, { where: { id: shoeId } });
-      if (!shoe) throw new NotFoundException('신발을 찾을 수 없습니다.');
+      if (!shoe) {
+        throw new NotFoundException('신발을 찾을 수 없습니다.');
+      }
 
       const run = await m.findOne(RunModel, { where: { id: runId } });
-      if (!run)
+      if (!run) {
         throw new NotFoundException('러닝기록(Run)을 찾을 수 없습니다.');
+      }
 
       // 소유자 일치(옵션)
       if (shoe.userId !== run.userId) {
@@ -81,19 +100,19 @@ export class ShoesService {
       }
 
       // 신규 연결
-      const link = m.create(ShoeMileageModel, {
+      const mileage = m.create(ShoeMileageModel, {
         shoeId: shoe.id,
         runId: run.id,
       });
-      await m.save(link);
+      await m.save(mileage);
       await m.increment(
         ShoeModel,
         { id: shoe.id },
-        'totalMileageKm',
+        'totalMileage',
         run.distance,
       );
       const updated = await m.findOneByOrFail(ShoeModel, { id: shoe.id });
-      return { shoe: updated, mileage: link, moved: false };
+      return { shoe: updated, mileage, moved: false };
     });
   }
 
@@ -103,7 +122,7 @@ export class ShoesService {
         where: { id: mileageId },
         relations: { run: true },
       });
-      if (!mileage) throw new NotFoundException('연결을 찾을 수 없습니다.');
+      if (!mileage) throw new NotFoundException('마일리지을 찾을 수 없습니다.');
 
       await m.remove(mileage);
       await m.decrement(
@@ -117,5 +136,19 @@ export class ShoesService {
       });
       return { shoe: updated, removedId: mileageId };
     });
+  }
+
+  async updateShoe(shoeId: string, dto: UpdateShoeDto) {
+    const shoe = await this.shoeRepository.findOne({ where: { id: shoeId } });
+
+    if (!shoe) {
+      throw new NotFoundException('신발을 찾을 수 없습니다.');
+    }
+
+    if (dto.brand) shoe.brand = dto.brand;
+    if (dto.model) shoe.model = dto.model;
+    if (dto.nickname) shoe.nickname = dto.nickname;
+
+    return this.shoeRepository.save(shoe);
   }
 }

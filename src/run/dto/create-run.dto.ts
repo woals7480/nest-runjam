@@ -12,5 +12,5 @@ export class CreateRunDto extends PickType(RunModel, ['note', 'distance']) {
   runAt: string;
 
   @Matches(HMS_RE, { message: hmsValidationMessage })
-  duration: string; // ← "01:10:10"
+  duration: string;
 }
