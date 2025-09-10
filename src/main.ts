@@ -10,7 +10,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-      'http://localhost:3000', // Next dev
+      process.env.CORS_ORIGIN ?? 'http://localhost:3000', // Next dev
       // 'https://your-frontend.app',    // 배포 도메인
     ],
     credentials: true, // 반드시 true
