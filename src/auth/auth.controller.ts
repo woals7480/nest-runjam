@@ -109,10 +109,10 @@ export class AuthController {
       payload.sub,
       user?.email ?? '',
     );
-    const newRefreshToken = this.authService.signRefreshToken(payload.sub);
+    // const newRefreshToken = this.authService.signRefreshToken(payload.sub);
     this.setAccess(res, newAccessToken);
-    this.setRefresh(res, newRefreshToken);
-    return { ok: true };
+    // this.setRefresh(res, newRefreshToken);
+    return { accessToken: newAccessToken };
   }
 
   @Post('logout')
