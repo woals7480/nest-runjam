@@ -2,13 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRunDto } from './dto/create-run.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RunModel } from './entity/run.entity';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, FindOptionsWhere, LessThan, Repository } from 'typeorm';
 import { parseHmsToSec, parseYmdHmToDate } from 'src/common/format/time-format';
 import { ShoeMileageModel } from 'src/shoes/entity/shoe-mileage.entity';
 import { ShoeModel } from 'src/shoes/entity/shoes.entity';
 import { UpdateRunDto } from './dto/update-run.dto';
 import { PaginateRunDto } from './dto/paginate-run.dto';
-import { decodeRunCursor, encodeRunCursor } from './utils/cursor';
+import { decodeRunCursor, encodeRunCursor, RunCursor } from './utils/cursor';
 
 @Injectable()
 export class RunService {
@@ -68,44 +68,29 @@ export class RunService {
 
   async cursorPaginateRuns(query: PaginateRunDto, userId: string) {
     const take = query.take;
-
-    // 커서 해석
-    const cursor = query.cursor ? decodeRunCursor(query.cursor) : null;
-
-    // 키셋 조건
-    const qb = this.runRepository
-      .createQueryBuilder('r')
-      .where('r.userId = :userId', { userId })
-      .orderBy('r.runAt', 'DESC')
-      .addOrderBy('r.id', 'DESC') // 동률 깨기
-      .take(take + 1); // 다음 페이지 여부 판별용으로 1개 더
+    const cursor: RunCursor | null = query.cursor
+      ? decodeRunCursor(query.cursor)
+      : null;
+    let whereClause: FindOptionsWhere<RunModel> | FindOptionsWhere<RunModel>[];
 
     if (cursor) {
-      // (runAt < cursor.runAt) OR (runAt = cursor.runAt AND id < cursor.id)
-      qb.andWhere(
-        '(r.runAt < :cRunAt OR (r.runAt = :cRunAt AND r.id < :cId))',
-        {
-          cRunAt: cursor.runAt.toISOString(),
-          cId: cursor.id,
-        },
-      );
+      whereClause = [
+        { userId, runAt: LessThan(cursor.runAt) },
+        { userId, runAt: cursor.runAt, id: LessThan(cursor.id) },
+      ];
+    } else {
+      whereClause = { userId };
     }
 
-    const raw = await this.runRepository
-      .createQueryBuilder('r')
-      .select('COALESCE(SUM(r.distance), 0)', 'sum')
-      .where('r.userId = :userId', { userId })
-      .getRawOne<{ sum: string | null }>();
+    const rows = await this.runRepository.find({
+      where: whereClause,
+      order: { runAt: 'DESC', id: 'DESC' },
+      take: take + 1,
+    });
 
-    const totalDistance = Number(raw?.sum ?? 0); // DECIMAL → number
-
-    const rows = await qb.getMany();
-
-    // hasNext 판단 (limit+1 전략)
     const hasNextPage = rows.length > take;
     const items = hasNextPage ? rows.slice(0, take) : rows;
 
-    // nextCursor 생성
     const nextCursor =
       hasNextPage && items.length > 0
         ? encodeRunCursor({
@@ -114,13 +99,18 @@ export class RunService {
           })
         : null;
 
+    // 합계는 QB로 안전하게(아래처럼 제네릭으로 raw 타입 고정)
+    const raw = await this.runRepository
+      .createQueryBuilder('r')
+      .select('COALESCE(SUM(r.distance), 0)', 'sum')
+      .where('r.userId = :userId', { userId })
+      .getRawOne<{ sum: string }>();
+
+    const totalDistance = Number(raw?.sum ?? 0);
+
     return {
       items,
-      pageInfo: {
-        hasNextPage,
-        nextCursor,
-        take,
-      },
+      pageInfo: { hasNextPage, nextCursor, take },
       totalDistance,
     };
   }
