@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { RunService } from './run.service';
 import { CreateRunDto } from './dto/create-run.dto';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { UpdateRunDto } from './dto/update-run.dto';
+import { PaginateRunDto } from './dto/paginate-run.dto';
 
 @Controller('run')
 export class RunController {
@@ -29,10 +31,19 @@ export class RunController {
     return this.runService.createRun(dto);
   }
 
+  // @Get()
+  // @UseGuards(JwtAuthGuard)
+  // getRuns(@Req() req: Request & { user: { id: string } }) {
+  //   return this.runService.findRuns(req.user.id);
+  // }
+
   @Get()
   @UseGuards(JwtAuthGuard)
-  getRuns(@Req() req: Request & { user: { id: string } }) {
-    return this.runService.findRuns(req.user.id);
+  getPaginateRuns(
+    @Req() req: Request & { user: { id: string } },
+    @Query() query: PaginateRunDto,
+  ) {
+    return this.runService.cursorPaginateRuns(query, req.user.id);
   }
 
   @Patch(':id')
