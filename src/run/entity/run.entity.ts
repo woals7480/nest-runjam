@@ -43,7 +43,6 @@ export class RunModel extends BaseModel {
   @Max(999.99, { message: maxValidationMessage })
   distance: number;
 
-  @Exclude()
   @Column({ default: 0 })
   @IsInt()
   durationSec: number;
