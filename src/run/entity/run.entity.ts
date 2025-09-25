@@ -17,8 +17,6 @@ import {
   maxValidationMessage,
   minValidationMessage,
 } from 'src/common/validation-message/minmax-validation.message';
-import { Exclude, Expose } from 'class-transformer';
-import { formatSecToMs } from 'src/common/format/time-format';
 import { decimalTransformer } from 'src/common/tranformer/decimal.transformer';
 import { ShoeMileageModel } from 'src/shoes/entity/shoe-mileage.entity';
 
@@ -58,37 +56,4 @@ export class RunModel extends BaseModel {
 
   @OneToMany(() => ShoeMileageModel, (mileage) => mileage.run)
   mileages: ShoeMileageModel[];
-  // @Expose()
-  // get runAtText(): string {
-  //   const d = this.runAt instanceof Date ? this.runAt : new Date(this.runAt);
-  //   const pad = (n: number) => String(n).padStart(2, '0');
-  //   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  // }
-
-  @Expose()
-  get durationText(): string {
-    const t = this.durationSec;
-    const h = Math.floor(t / 3600);
-    const m = Math.floor((t % 3600) / 60);
-    const s = t % 60;
-    const parts: string[] = [];
-    if (h > 0) parts.push(`${h}시간`);
-    if (m > 0) parts.push(`${m}분`);
-    if (s > 0 || parts.length === 0) parts.push(`${s}초`);
-    return parts.join(' ');
-  }
-
-  // 1km당 평균 페이스
-  get pacePerKmSecRaw(): number | null {
-    const dist = Number(this.distance ?? 0);
-    if (!Number.isFinite(dist) || dist <= 0) return null;
-    return Math.round(this.durationSec / dist);
-  }
-
-  @Expose()
-  get pacePerKm(): string | null {
-    const sec = this.pacePerKmSecRaw;
-    if (sec == null) return null;
-    return `${formatSecToMs(sec)}/km`;
-  }
 }

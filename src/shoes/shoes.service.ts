@@ -10,7 +10,6 @@ import { DataSource, Repository } from 'typeorm';
 import { RunModel } from 'src/run/entity/run.entity';
 import { ShoeMileageModel } from './entity/shoe-mileage.entity';
 import { UpdateShoeDto } from './dto/update-shoe.dto';
-import { formatHmsKorean, formatSecToMs } from 'src/common/format/time-format';
 
 @Injectable()
 export class ShoesService {
@@ -76,27 +75,13 @@ export class ShoesService {
     const totalDurationSec = Number(raw?.totalDurationSec ?? 0);
     const totalDistanceKm = Number(raw?.totalDistanceKm ?? 0);
 
-    // 평균 페이스(초/ km) → "mm:ss/km"
-    const avgPaceSec =
-      totalDistanceKm > 0
-        ? Math.round(totalDurationSec / totalDistanceKm)
-        : null;
-    const avgPace =
-      avgPaceSec != null ? `${formatSecToMs(avgPaceSec)}/km` : null;
-
-    // 보기 좋은 총 시간 텍스트(예: "1시간 10분 5초")
-    const totalDurationText = formatHmsKorean(totalDurationSec);
-
     // 3) 합쳐서 반환
     return {
       ...shoe,
       stats: {
         runCount, // 총 횟수
         totalDurationSec, // 총 시간(초)
-        totalDurationText, // 총 시간 텍스트
         totalDistanceKm, // 총 거리(km) (덤으로 주면 유용)
-        avgPaceSecPerKm: avgPaceSec, // 평균 페이스(초/ km, 필요 시)
-        avgPace, // 평균 페이스 "mm:ss/km"
       },
     };
   }
