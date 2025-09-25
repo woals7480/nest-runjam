@@ -24,6 +24,15 @@ export class ShoesController {
     return this.shoesService.findShoes(req.user.id);
   }
 
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  getShoe(
+    @Req() req: Request & { user: { id: string } },
+    @Param('id') id: string,
+  ) {
+    return this.shoesService.findShoe(req.user.id, id);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   postShoe(

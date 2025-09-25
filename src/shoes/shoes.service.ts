@@ -10,6 +10,7 @@ import { DataSource, Repository } from 'typeorm';
 import { RunModel } from 'src/run/entity/run.entity';
 import { ShoeMileageModel } from './entity/shoe-mileage.entity';
 import { UpdateShoeDto } from './dto/update-shoe.dto';
+import { formatHmsKorean, formatSecToMs } from 'src/common/format/time-format';
 
 @Injectable()
 export class ShoesService {
@@ -34,6 +35,70 @@ export class ShoesService {
     });
 
     return shoes;
+  }
+
+  // async findShoe(userId: string, shoeId: string) {
+  //   const shoes = await this.shoeRepository.findOne({
+  //     where: {
+  //       userId,
+  //       id: shoeId,
+  //     },
+  //     relations: {
+  //       mileages: true,
+  //     },
+  //   });
+
+  //   return shoes;
+  // }
+  async findShoe(userId: string, shoeId: string) {
+    // 1) 신발 본문
+    const shoe = await this.shoeRepository.findOne({
+      where: { userId, id: shoeId },
+    });
+    if (!shoe) throw new NotFoundException('신발을 찾을 수 없습니다.');
+
+    // 2) 신발-달리기 집계 (shoe_mileages → runs)
+    const raw = await this.mileageRepository
+      .createQueryBuilder('m')
+      .innerJoin('m.run', 'run')
+      .where('m.shoeId = :shoeId', { shoeId })
+      .andWhere('run.userId = :userId', { userId })
+      .select('COUNT(m.id)', 'runCount')
+      .addSelect('COALESCE(SUM(run.durationSec), 0)', 'totalDurationSec')
+      .addSelect('COALESCE(SUM(run.distance), 0)', 'totalDistanceKm')
+      .getRawOne<{
+        runCount: string;
+        totalDurationSec: string;
+        totalDistanceKm: string;
+      }>();
+
+    const runCount = Number(raw?.runCount ?? 0);
+    const totalDurationSec = Number(raw?.totalDurationSec ?? 0);
+    const totalDistanceKm = Number(raw?.totalDistanceKm ?? 0);
+
+    // 평균 페이스(초/ km) → "mm:ss/km"
+    const avgPaceSec =
+      totalDistanceKm > 0
+        ? Math.round(totalDurationSec / totalDistanceKm)
+        : null;
+    const avgPace =
+      avgPaceSec != null ? `${formatSecToMs(avgPaceSec)}/km` : null;
+
+    // 보기 좋은 총 시간 텍스트(예: "1시간 10분 5초")
+    const totalDurationText = formatHmsKorean(totalDurationSec);
+
+    // 3) 합쳐서 반환
+    return {
+      ...shoe,
+      stats: {
+        runCount, // 총 횟수
+        totalDurationSec, // 총 시간(초)
+        totalDurationText, // 총 시간 텍스트
+        totalDistanceKm, // 총 거리(km) (덤으로 주면 유용)
+        avgPaceSecPerKm: avgPaceSec, // 평균 페이스(초/ km, 필요 시)
+        avgPace, // 평균 페이스 "mm:ss/km"
+      },
+    };
   }
 
   createShoe(userId: string, dto: CreateShoeDto) {

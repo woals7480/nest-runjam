@@ -49,3 +49,14 @@ export function formatSecToMs(sec: number): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(m)}:${pad(s)}`;
 }
+
+export function formatHmsKorean(totalSec: number): string {
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const parts: string[] = [];
+  if (h > 0) parts.push(`${h}시간`);
+  if (m > 0) parts.push(`${m}분`);
+  if (s > 0 || parts.length === 0) parts.push(`${s}초`);
+  return parts.join(' ');
+}
