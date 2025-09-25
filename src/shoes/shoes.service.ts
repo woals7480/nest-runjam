@@ -28,6 +28,9 @@ export class ShoesService {
       where: {
         userId,
       },
+      relations: {
+        mileages: true,
+      },
     });
 
     return shoes;
