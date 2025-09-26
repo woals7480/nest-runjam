@@ -2,7 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRunDto } from './dto/create-run.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RunModel } from './entity/run.entity';
-import { DataSource, FindOptionsWhere, LessThan, Repository } from 'typeorm';
+import {
+  Brackets,
+  DataSource,
+  FindOptionsWhere,
+  LessThan,
+  Repository,
+} from 'typeorm';
 import { parseHmsToSec, parseYmdHmToDate } from 'src/common/format/time-format';
 import { ShoeMileageModel } from 'src/shoes/entity/shoe-mileage.entity';
 import { ShoeModel } from 'src/shoes/entity/shoes.entity';
@@ -66,6 +72,7 @@ export class RunService {
     };
   }
 
+  // 기존 pagination
   async cursorPaginateRuns(query: PaginateRunDto, userId: string) {
     const take = query.take;
     const cursor: RunCursor | null = query.cursor
@@ -85,6 +92,11 @@ export class RunService {
     const rows = await this.runRepository.find({
       where: whereClause,
       order: { runAt: 'DESC', id: 'DESC' },
+      relations: {
+        mileage: {
+          shoe: true,
+        },
+      },
       take: take + 1,
     });
 
@@ -110,6 +122,70 @@ export class RunService {
 
     return {
       items,
+      pageInfo: { hasNextPage, nextCursor, take },
+      totalDistance,
+    };
+  }
+
+  // run에 신발 정보 포함 cursor pagination
+  async cursorPaginateRunsAndShoe(query: PaginateRunDto, userId: string) {
+    const take = query.take;
+    const cursor: RunCursor | null = query.cursor
+      ? decodeRunCursor(query.cursor)
+      : null;
+
+    const qb = this.runRepository
+      .createQueryBuilder('run')
+      .where('run.userId = :userId', { userId })
+      .leftJoin('run.mileages', 'm')
+      // 🔴 핵심: ON 절로 매핑 대상 명시
+      .leftJoinAndMapOne('run.shoe', ShoeModel, 'shoe', 'shoe.id = m.shoeId')
+      // shoe는 조인 엔티티이므로 필요한 컬럼을 선택해 줍니다.
+      .addSelect(['shoe.id', 'shoe.brand', 'shoe.model', 'shoe.nickname'])
+      .orderBy({ 'run.runAt': 'DESC', 'run.id': 'DESC' })
+      .take(take + 1);
+
+    // 커서 조건: (runAt < cursor.runAt) OR (runAt = cursor.runAt AND id < cursor.id)
+    if (cursor) {
+      qb.andWhere(
+        new Brackets((w) => {
+          w.where('run.runAt < :cursorRunAt', {
+            cursorRunAt: cursor.runAt,
+          }).orWhere(
+            new Brackets((w2) => {
+              w2.where('run.runAt = :cursorRunAt', {
+                cursorRunAt: cursor.runAt,
+              }).andWhere('run.id < :cursorId', { cursorId: cursor.id });
+            }),
+          );
+        }),
+      );
+    }
+
+    const rows = await qb.getMany();
+
+    const hasNextPage = rows.length > take;
+    const items = hasNextPage ? rows.slice(0, take) : rows;
+
+    const nextCursor =
+      hasNextPage && items.length > 0
+        ? encodeRunCursor({
+            runAt: items[items.length - 1].runAt,
+            id: items[items.length - 1].id,
+          })
+        : null;
+
+    // 합계 쿼리는 기존 그대로
+    const raw = await this.runRepository
+      .createQueryBuilder('r')
+      .select('COALESCE(SUM(r.distance), 0)', 'sum')
+      .where('r.userId = :userId', { userId })
+      .getRawOne<{ sum: string }>();
+
+    const totalDistance = Number(raw?.sum ?? 0);
+
+    return {
+      items, // 각 item: run + shoe(가상필드). mileages는 로드되지 않음
       pageInfo: { hasNextPage, nextCursor, take },
       totalDistance,
     };
