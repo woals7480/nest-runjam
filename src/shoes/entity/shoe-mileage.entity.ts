@@ -1,5 +1,12 @@
 import { BaseModel } from 'src/common/entity/base.entity';
-import { Column, Entity, Index, ManyToOne } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToOne,
+} from 'typeorm';
 import { ShoeModel } from './shoes.entity';
 import { RunModel } from 'src/run/entity/run.entity';
 
@@ -16,6 +23,7 @@ export class ShoeMileageModel extends BaseModel {
   @Column()
   runId: string;
 
-  @ManyToOne(() => RunModel, (run) => run.mileages, { onDelete: 'CASCADE' })
+  @OneToOne(() => RunModel, { onDelete: 'CASCADE' })
+  @JoinColumn()
   run: RunModel;
 }
