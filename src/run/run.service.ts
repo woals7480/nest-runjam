@@ -182,7 +182,7 @@ export class RunService {
     const map = new Map<string, number>(); // key: yyyy-MM-dd, value: km
     for (const r of barsRaw) {
       // d는 드라이버 설정에 따라 'YYYY-MM-DD' 문자열로 옵니다.
-      map.set(String(r.d), Number(r.km ?? 0));
+      map.set(format(r.d, 'yyyy-MM-dd'), Number(r.km ?? 0));
     }
 
     const labelsKo = ['월', '화', '수', '목', '금', '토', '일'];
@@ -298,7 +298,6 @@ export class RunService {
 
     const map = new Map<number, number>();
     for (const r of barsRaw) map.set(Number(r.m), Number(r.km ?? 0));
-    console.log(map);
     const bars = Array.from({ length: 12 }).map((_, i) => {
       const monthNum = i + 1;
       return { label: String(monthNum), km: map.get(monthNum) ?? 0 };

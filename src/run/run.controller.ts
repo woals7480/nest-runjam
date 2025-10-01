@@ -46,7 +46,7 @@ export class RunController {
     return this.runService.cursorPaginateRuns(query, req.user.id);
   }
 
-  @Get('weekly')
+  @Get('stats/weekly')
   @UseGuards(JwtAuthGuard)
   getWeeklyRuns(
     @Req() req: Request & { user: { id: string } },
@@ -56,7 +56,7 @@ export class RunController {
     return this.runService.findWeeklyStats(req.user.id, { date, tz });
   }
 
-  @Get('monthly')
+  @Get('stats/monthly')
   @UseGuards(JwtAuthGuard)
   monthly(
     @Req() req: Request & { user: { id: string } },
@@ -71,21 +71,20 @@ export class RunController {
     });
   }
 
-  @Get('yearly')
+  @Get('stats/yearly')
   @UseGuards(JwtAuthGuard)
   yearly(
     @Req() req: Request & { user: { id: string } },
     @Query('year') year?: number,
     @Query('tz') tz = 'Asia/Seoul',
   ) {
-    console.log(year);
     return this.runService.findYearlyStats(req.user.id, {
       year,
       tz,
     });
   }
 
-  @Get('overall')
+  @Get('stats/overall')
   @UseGuards(JwtAuthGuard)
   overall(
     @Req() req: Request & { user: { id: string } },
