@@ -15,6 +15,26 @@ import { ShoeModel } from 'src/shoes/entity/shoes.entity';
 import { UpdateRunDto } from './dto/update-run.dto';
 import { PaginateRunDto } from './dto/paginate-run.dto';
 import { decodeRunCursor, encodeRunCursor, RunCursor } from './utils/cursor';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import {
+  startOfWeek,
+  addDays,
+  startOfDay,
+  format,
+  startOfMonth,
+  addMonths,
+  differenceInCalendarDays,
+  endOfMonth,
+  startOfYear,
+  addYears,
+} from 'date-fns';
+import {
+  BarRaw,
+  MonthlyOpts,
+  OverallOpts,
+  WeeklyOpts,
+  YearlyOpts,
+} from './dto/stats-run.dto';
 
 @Injectable()
 export class RunService {
@@ -69,6 +89,298 @@ export class RunService {
     return {
       items: runs,
       totalDistance,
+    };
+  }
+  private getWeekRange(date?: string, tz = 'Asia/Seoul') {
+    const base = date ? new Date(date) : new Date();
+    const local = toZonedTime(base, tz);
+    const mondayLocal = startOfDay(startOfWeek(local, { weekStartsOn: 1 }));
+    const nextMondayLocal = addDays(mondayLocal, 7);
+
+    const startLocalStr = format(mondayLocal, 'yyyy-MM-dd');
+    const endLocalStr = format(addDays(nextMondayLocal, -1), 'yyyy-MM-dd');
+
+    const startUtc = fromZonedTime(mondayLocal, tz);
+    const endUtc = fromZonedTime(nextMondayLocal, tz);
+
+    return { tz, startUtc, endUtc, startLocalStr, endLocalStr };
+  }
+
+  private getMonthRange(year?: number, month1to12?: number, tz = 'Asia/Seoul') {
+    const now = toZonedTime(new Date(), tz);
+    const y = year ?? Number(format(now, 'yyyy'));
+    const m = month1to12 ?? Number(format(now, 'M'));
+    const startLocal = startOfDay(startOfMonth(new Date(y, m - 1, 1)));
+    const nextMonthLocal = addMonths(startLocal, 1);
+    const days =
+      differenceInCalendarDays(endOfMonth(startLocal), startLocal) + 1;
+    return {
+      tz,
+      year: y,
+      month: m,
+      days,
+      startUtc: fromZonedTime(startLocal, tz),
+      endUtc: fromZonedTime(nextMonthLocal, tz),
+      startLocalStr: format(startLocal, 'yyyy-MM-dd'),
+      endLocalStr: format(addDays(nextMonthLocal, -1), 'yyyy-MM-dd'),
+    };
+  }
+
+  private getYearRange(year?: number, tz = 'Asia/Seoul') {
+    const now = toZonedTime(new Date(), tz);
+    const y = year ?? Number(format(now, 'yyyy'));
+    const startLocal = startOfDay(startOfYear(new Date(y, 0, 1)));
+    const nextYearLocal = addYears(startLocal, 1);
+    return {
+      tz,
+      year: y,
+      startUtc: fromZonedTime(startLocal, tz),
+      endUtc: fromZonedTime(nextYearLocal, tz),
+    };
+  }
+
+  async findWeeklyStats(userId: string, opts: WeeklyOpts = {}) {
+    const {
+      tz = 'Asia/Seoul',
+      startUtc,
+      endUtc,
+      startLocalStr,
+      endLocalStr,
+    } = this.getWeekRange(opts.date, opts.tz ?? 'Asia/Seoul');
+
+    // 1) 일별 합계 (현지 날짜 기준)
+    const barsRaw = await this.runRepository
+      .createQueryBuilder('r')
+      .select(`((r."runAt" AT TIME ZONE :tz)::date)`, 'd')
+      .addSelect(`COALESCE(SUM(r."distance"), 0)`, 'km')
+      .addSelect(`COALESCE(SUM(r."durationSec"), 0)`, 'sec')
+      .addSelect(`COUNT(*)`, 'cnt')
+      .where(`r."userId" = :userId`, { userId })
+      .andWhere(`r."runAt" >= :start AND r."runAt" < :end`, {
+        start: startUtc,
+        end: endUtc,
+      })
+      .setParameter('tz', tz)
+      .groupBy('d')
+      .orderBy('d', 'ASC')
+      .getRawMany<BarRaw>();
+
+    // 2) 전체 요약
+    const sumRaw = await this.runRepository
+      .createQueryBuilder('r')
+      .select(`COALESCE(SUM(r."distance"), 0)`, 'total_km')
+      .addSelect(`COALESCE(SUM(r."durationSec"), 0)`, 'total_sec')
+      .addSelect(`COUNT(*)`, 'run_count')
+      .where(`r."userId" = :userId`, { userId })
+      .andWhere(`r."runAt" >= :start AND r."runAt" < :end`, {
+        start: startUtc,
+        end: endUtc,
+      })
+      .getRawOne<{ total_km: string; total_sec: string; run_count: string }>();
+
+    // 3) 월~일 7칸 생성 + 0채우기
+    const map = new Map<string, number>(); // key: yyyy-MM-dd, value: km
+    for (const r of barsRaw) {
+      // d는 드라이버 설정에 따라 'YYYY-MM-DD' 문자열로 옵니다.
+      map.set(String(r.d), Number(r.km ?? 0));
+    }
+
+    const labelsKo = ['월', '화', '수', '목', '금', '토', '일'];
+    const bars = Array.from({ length: 7 }).map((_, i) => {
+      const d = addDays(new Date(startLocalStr), i);
+      const key = format(d, 'yyyy-MM-dd');
+      const km = map.get(key) ?? 0;
+      return { label: labelsKo[i], km };
+    });
+
+    const totalKm = Number(sumRaw?.total_km ?? 0);
+    const durationSec = Number(sumRaw?.total_sec ?? 0);
+    const runCount = Number(sumRaw?.run_count ?? 0);
+    const avgPaceSecPerKm =
+      totalKm > 0 ? Math.round(durationSec / totalKm) : null;
+
+    return {
+      range: { start: startLocalStr, end: endLocalStr },
+      summary: { totalKm, durationSec, runCount, avgPaceSecPerKm },
+      bars,
+    };
+  }
+
+  async findMonthlyStats(userId: string, opts: MonthlyOpts = {}) {
+    const { tz, year, month, days, startUtc, endUtc, startLocalStr } =
+      this.getMonthRange(opts.year, opts.month, opts.tz ?? 'Asia/Seoul');
+
+    // 일별 합계
+    const barsRaw = await this.runRepository
+      .createQueryBuilder('r')
+      .select(`((r."runAt" AT TIME ZONE :tz)::date)`, 'd')
+      .addSelect(`COALESCE(SUM(r."distance"), 0)`, 'km')
+      .where(`r."userId" = :userId`, { userId })
+      .andWhere(`r."runAt" >= :start AND r."runAt" < :end`, {
+        start: startUtc,
+        end: endUtc,
+      })
+      .setParameter('tz', tz)
+      .groupBy('d')
+      .orderBy('d', 'ASC')
+      .getRawMany<{ d: string; km: string }>();
+
+    const sumRaw = await this.runRepository
+      .createQueryBuilder('r')
+      .select(`COALESCE(SUM(r."distance"), 0)`, 'total_km')
+      .addSelect(`COALESCE(SUM(r."durationSec"), 0)`, 'total_sec')
+      .addSelect(`COUNT(*)`, 'run_count')
+      .where(`r."userId" = :userId`, { userId })
+      .andWhere(`r."runAt" >= :start AND r."runAt" < :end`, {
+        start: startUtc,
+        end: endUtc,
+      })
+      .getRawOne<{ total_km: string; total_sec: string; run_count: string }>();
+
+    // 1..days 채우기
+    const map = new Map<string, number>();
+    for (const r of barsRaw)
+      map.set(format(r.d as unknown as Date, 'yyyy-MM-dd'), Number(r.km ?? 0));
+    const first = new Date(startLocalStr);
+    const bars = Array.from({ length: days }).map((_, i) => {
+      const d = addDays(first, i);
+      const key = format(d, 'yyyy-MM-dd');
+      return { label: String(i + 1), km: map.get(key) ?? 0 };
+    });
+
+    const totalKm = Number(sumRaw?.total_km ?? 0);
+    const durationSec = Number(sumRaw?.total_sec ?? 0);
+    const runCount = Number(sumRaw?.run_count ?? 0);
+    const avgPaceSecPerKm =
+      totalKm > 0 ? Math.round(durationSec / totalKm) : null;
+
+    return {
+      year,
+      month,
+      summary: { totalKm, durationSec, runCount, avgPaceSecPerKm },
+      bars,
+    };
+  }
+
+  // ───────────────────────── 연간 ─────────────────────────
+  async findYearlyStats(userId: string, opts: YearlyOpts = {}) {
+    const { tz, year, startUtc, endUtc } = this.getYearRange(
+      opts.year,
+      opts.tz ?? 'Asia/Seoul',
+    );
+
+    // 월별 합계 (1~12)
+    const barsRaw = await this.runRepository
+      .createQueryBuilder('r')
+      .select(`EXTRACT(MONTH FROM (r."runAt" AT TIME ZONE :tz))`, 'm')
+      .addSelect(`COALESCE(SUM(r."distance"), 0)`, 'km')
+      .where(`r."userId" = :userId`, { userId })
+      .andWhere(`r."runAt" >= :start AND r."runAt" < :end`, {
+        start: startUtc,
+        end: endUtc,
+      })
+      .setParameter('tz', tz)
+      .groupBy('m')
+      .orderBy('m', 'ASC')
+      .getRawMany<{ m: string; km: string }>();
+
+    const sumRaw = await this.runRepository
+      .createQueryBuilder('r')
+      .select(`COALESCE(SUM(r."distance"), 0)`, 'total_km')
+      .addSelect(`COALESCE(SUM(r."durationSec"), 0)`, 'total_sec')
+      .addSelect(`COUNT(*)`, 'run_count')
+      .where(`r."userId" = :userId`, { userId })
+      .andWhere(`r."runAt" >= :start AND r."runAt" < :end`, {
+        start: startUtc,
+        end: endUtc,
+      })
+      .getRawOne<{ total_km: string; total_sec: string; run_count: string }>();
+
+    const map = new Map<number, number>();
+    for (const r of barsRaw) map.set(Number(r.m), Number(r.km ?? 0));
+    console.log(map);
+    const bars = Array.from({ length: 12 }).map((_, i) => {
+      const monthNum = i + 1;
+      return { label: String(monthNum), km: map.get(monthNum) ?? 0 };
+    });
+
+    const totalKm = Number(sumRaw?.total_km ?? 0);
+    const durationSec = Number(sumRaw?.total_sec ?? 0);
+    const runCount = Number(sumRaw?.run_count ?? 0);
+    const avgPaceSecPerKm =
+      totalKm > 0 ? Math.round(durationSec / totalKm) : null;
+
+    return {
+      year,
+      summary: { totalKm, durationSec, runCount, avgPaceSecPerKm },
+      bars,
+    };
+  }
+
+  // ───────────────────────── 전체 (연도별) ─────────────────────────
+  async findOverallStats(userId: string, opts: OverallOpts = {}) {
+    const tz = opts.tz ?? 'Asia/Seoul';
+
+    // 사용자 데이터의 최솟값/최댓값 연도 구하기
+    const bounds = await this.runRepository
+      .createQueryBuilder('r')
+      .select(`MIN(r."runAt")`, 'min_at')
+      .addSelect(`MAX(r."runAt")`, 'max_at')
+      .where(`r."userId" = :userId`, { userId })
+      .getRawOne<{ min_at: Date | null; max_at: Date | null }>();
+
+    if (!bounds?.min_at || !bounds?.max_at) {
+      return {
+        summary: {
+          totalKm: 0,
+          durationSec: 0,
+          runCount: 0,
+          avgPaceSecPerKm: null,
+        },
+        bars: [],
+      };
+    }
+
+    const minYear = Number(format(toZonedTime(bounds.min_at, tz), 'yyyy'));
+    const maxYear = Number(format(toZonedTime(bounds.max_at, tz), 'yyyy'));
+
+    // 연도별 합계
+    const rows = await this.runRepository
+      .createQueryBuilder('r')
+      .select(`EXTRACT(YEAR FROM (r."runAt" AT TIME ZONE :tz))`, 'y')
+      .addSelect(`COALESCE(SUM(r."distance"), 0)`, 'km')
+      .where(`r."userId" = :userId`, { userId })
+      .setParameter('tz', tz)
+      .groupBy('y')
+      .orderBy('y', 'ASC')
+      .getRawMany<{ y: string; km: string }>();
+
+    const byYear = new Map<number, number>();
+    for (const r of rows) byYear.set(Number(r.y), Number(r.km ?? 0));
+
+    const bars: { year: number; km: number }[] = [];
+    for (let y = minYear; y <= maxYear; y++) {
+      bars.push({ year: y, km: byYear.get(y) ?? 0 });
+    }
+
+    // 전체 요약
+    const sumRaw = await this.runRepository
+      .createQueryBuilder('r')
+      .select(`COALESCE(SUM(r."distance"), 0)`, 'total_km')
+      .addSelect(`COALESCE(SUM(r."durationSec"), 0)`, 'total_sec')
+      .addSelect(`COUNT(*)`, 'run_count')
+      .where(`r."userId" = :userId`, { userId })
+      .getRawOne<{ total_km: string; total_sec: string; run_count: string }>();
+
+    const totalKm = Number(sumRaw?.total_km ?? 0);
+    const durationSec = Number(sumRaw?.total_sec ?? 0);
+    const runCount = Number(sumRaw?.run_count ?? 0);
+    const avgPaceSecPerKm =
+      totalKm > 0 ? Math.round(durationSec / totalKm) : null;
+
+    return {
+      summary: { totalKm, durationSec, runCount, avgPaceSecPerKm },
+      bars,
     };
   }
 
