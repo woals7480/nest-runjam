@@ -196,12 +196,10 @@ export class RunService {
     const totalKm = Number(sumRaw?.total_km ?? 0);
     const durationSec = Number(sumRaw?.total_sec ?? 0);
     const runCount = Number(sumRaw?.run_count ?? 0);
-    const avgPaceSecPerKm =
-      totalKm > 0 ? Math.round(durationSec / totalKm) : null;
 
     return {
       range: { start: startLocalStr, end: endLocalStr },
-      summary: { totalKm, durationSec, runCount, avgPaceSecPerKm },
+      summary: { totalKm, durationSec, runCount },
       bars,
     };
   }
@@ -251,13 +249,11 @@ export class RunService {
     const totalKm = Number(sumRaw?.total_km ?? 0);
     const durationSec = Number(sumRaw?.total_sec ?? 0);
     const runCount = Number(sumRaw?.run_count ?? 0);
-    const avgPaceSecPerKm =
-      totalKm > 0 ? Math.round(durationSec / totalKm) : null;
 
     return {
       year,
       month,
-      summary: { totalKm, durationSec, runCount, avgPaceSecPerKm },
+      summary: { totalKm, durationSec, runCount },
       bars,
     };
   }
@@ -306,12 +302,10 @@ export class RunService {
     const totalKm = Number(sumRaw?.total_km ?? 0);
     const durationSec = Number(sumRaw?.total_sec ?? 0);
     const runCount = Number(sumRaw?.run_count ?? 0);
-    const avgPaceSecPerKm =
-      totalKm > 0 ? Math.round(durationSec / totalKm) : null;
 
     return {
       year,
-      summary: { totalKm, durationSec, runCount, avgPaceSecPerKm },
+      summary: { totalKm, durationSec, runCount },
       bars,
     };
   }
@@ -334,7 +328,6 @@ export class RunService {
           totalKm: 0,
           durationSec: 0,
           runCount: 0,
-          avgPaceSecPerKm: null,
         },
         bars: [],
       };
@@ -374,11 +367,9 @@ export class RunService {
     const totalKm = Number(sumRaw?.total_km ?? 0);
     const durationSec = Number(sumRaw?.total_sec ?? 0);
     const runCount = Number(sumRaw?.run_count ?? 0);
-    const avgPaceSecPerKm =
-      totalKm > 0 ? Math.round(durationSec / totalKm) : null;
 
     return {
-      summary: { totalKm, durationSec, runCount, avgPaceSecPerKm },
+      summary: { totalKm, durationSec, runCount },
       bars,
     };
   }
