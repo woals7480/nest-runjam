@@ -12,4 +12,5 @@ export default new DataSource({
   entities: [__dirname + '/**/*.entity.{ts,js}'],
   migrations: [__dirname + '/migrations/*.{ts,js}'],
   extra: { max: 10, connectionTimeoutMillis: 5000, idleTimeoutMillis: 10000 },
+  synchronize: false,
 });

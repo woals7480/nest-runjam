@@ -14,7 +14,11 @@ const isProd = process.env.NODE_ENV === 'production';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env'],
+      ignoreEnvFile: isProd, // 운영에선 주입된 env만 사용
+    }),
     TypeOrmModule.forRootAsync({
       useFactory: (): TypeOrmModuleOptions => ({
         type: 'postgres',

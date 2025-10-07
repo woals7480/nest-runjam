@@ -29,6 +29,6 @@ async function bootstrap() {
 
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
-  await app.listen(process.env.PORT ?? 4000, '0.0.0.0');
+  await app.listen(Number(process.env.PORT ?? 4000), '0.0.0.0');
 }
 bootstrap();
