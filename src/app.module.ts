@@ -10,6 +10,8 @@ import { CommonModule } from './common/common.module';
 import { ShoesModule } from './shoes/shoes.module';
 import { RunModule } from './run/run.module';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
@@ -18,11 +20,11 @@ import { RunModule } from './run/run.module';
         type: 'postgres',
         url: process.env.DATABASE_URL,
         ssl:
-          process.env.DB_SSL === 'true'
-            ? { ca: process.env.DB_CA_CERT }
-            : undefined,
+          process.env.DB_SSL === 'true' || isProd
+            ? { rejectUnauthorized: false }
+            : false,
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: !isProd,
       }),
     }),
     UsersModule,
