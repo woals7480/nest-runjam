@@ -14,6 +14,7 @@ const dataSource = new DataSource({
   migrations: [__dirname + '/migrations/*.{ts,js}'],
   // 서버리스/저코스트 시작: 커넥션 수 낮게
   extra: { max: 10, connectionTimeoutMillis: 5000, idleTimeoutMillis: 10000 },
+  synchronize: false,
 });
 
 export default dataSource;
