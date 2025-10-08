@@ -1,5 +1,5 @@
 // src/migrate.ts
-import dataSource from './src/typeorm.config';
+import dataSource from './typeorm.config';
 
 async function main() {
   await dataSource.initialize();
