@@ -28,7 +28,7 @@ const isProd = process.env.NODE_ENV === 'production';
             ? { rejectUnauthorized: false }
             : false,
         autoLoadEntities: true,
-        synchronize: !isProd,
+        synchronize: false,
       }),
     }),
     UsersModule,
