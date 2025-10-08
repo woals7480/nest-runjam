@@ -22,7 +22,7 @@
     "typeorm:gen": "typeorm-ts-node-commonjs migration:generate -d src/typeorm.config.ts src/migrations/Init",
     "typeorm:run": "typeorm-ts-node-commonjs migration:run -d src/typeorm.config.ts",
     "typeorm:revert": "typeorm-ts-node-commonjs migration:revert -d src/typeorm.config.ts",
-    "migrate:prod": "node dist/migrate.js"
+    "migrate:prod": "node dist/migrate"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
