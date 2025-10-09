@@ -33,11 +33,7 @@ export class AuthController {
   private get RT() {
     return this.config.get<string>('COOKIE_NAME_RT') ?? 'refresh_token';
   }
-  private get cookieDomain() {
-    // 서브도메인 공유가 필요할 때만 설정
-    return this.config.get<string>('COOKIE_DOMAIN') || undefined;
-  }
-
+  
   // ⬇️ 전역 함수였던 것들을 인스턴스 메서드로 변경
   private setAccess(res: Response, token: string) {
     res.cookie(this.AT, token, {
@@ -45,7 +41,6 @@ export class AuthController {
       secure: this.isProd,
       sameSite: this.isProd ? 'none' : 'lax',
       path: '/',
-      domain: this.cookieDomain,
       maxAge: 15 * 60 * 1000, // 15m
     });
   }
@@ -55,7 +50,6 @@ export class AuthController {
       secure: this.isProd,
       sameSite: this.isProd ? 'none' : 'lax',
       path: '/',
-      domain: this.cookieDomain,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7d
     });
   }
@@ -65,7 +59,6 @@ export class AuthController {
       secure: this.isProd,
       sameSite: this.isProd ? 'none' : 'lax',
       path: '/',
-      domain: this.cookieDomain,
     } as const;
     res.clearCookie(this.AT, opt);
     res.clearCookie(this.RT, opt);
