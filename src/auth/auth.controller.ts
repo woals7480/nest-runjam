@@ -81,7 +81,11 @@ export class AuthController {
 
     this.setAccess(res, accessToken);
     this.setRefresh(res, refreshToken);
-    return this.userService.sanitize(user);
+    return {
+      user: this.userService.sanitize(user),
+      accessToken,
+      refreshToken,
+    };
   }
 
   @Post('refresh')
